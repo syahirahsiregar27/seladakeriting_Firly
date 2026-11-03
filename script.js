@@ -1993,3 +1993,260 @@ window.addEventListener("resize", gambarGrafikKematangan);
 console.log(
     "SeladaDar Script berhasil dimuat."
 );
+
+
+// ==========================================================
+// 24. FIREBASE REALTIME DATABASE - REST API
+// Koneksi menggunakan URL database saja (tanpa Firebase SDK).
+// Interface dan style asli tidak diubah.
+// ==========================================================
+
+const FIREBASE_DATABASE_URL =
+    "https://selada-a9428-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+// Polling REST API untuk membaca perubahan data terbaru.
+// Ubah interval bila diperlukan (dalam milidetik).
+const FIREBASE_POLL_INTERVAL = 3000;
+
+// Path default yang didukung:
+// /sensor/latest.json atau data sensor langsung pada root database.
+// Pembacaan root membantu menyesuaikan beberapa bentuk struktur database.
+let firebaseLastSensorSignature = "";
+let firebaseLastLstmSignature = "";
+let firebaseLastHistorySignature = "";
+let firebaseReadInProgress = false;
+let firebasePumpStatusReceived = false;
+
+function firebaseCariObjekSensor(root) {
+    if (!root || typeof root !== "object") return null;
+
+    const candidates = [
+        root.sensor?.latest,
+        root.sensor?.current,
+        root.sensor?.data,
+        root.latest,
+        root.current,
+        root.data?.latest,
+        root.data?.sensor,
+        root.readings?.latest,
+        root
+    ];
+
+    const aliases = [
+        "suhu", "temperature", "suhuUdara",
+        "kelembapanUdara", "humidity", "airHumidity",
+        "kelembapanTanah", "soilMoisture", "soil_moisture",
+        "moisture"
+    ];
+
+    for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+        if (aliases.some(key => candidate[key] !== undefined && candidate[key] !== null)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function firebaseNormalisasiSensor(raw) {
+    if (!raw) return null;
+
+    const ambil = (...keys) => {
+        for (const key of keys) {
+            if (raw[key] !== undefined && raw[key] !== null && raw[key] !== "") {
+                const value = Number(raw[key]);
+                if (Number.isFinite(value)) return value;
+            }
+        }
+        return undefined;
+    };
+
+    const result = {
+        suhu: ambil("suhu", "temperature", "suhuUdara", "temp"),
+        kelembapanUdara: ambil("kelembapanUdara", "humidity", "airHumidity", "kelembapan_udara"),
+        kelembapanTanah: ambil("kelembapanTanah", "soilMoisture", "soil_moisture", "moisture", "kelembapan_tanah")
+    };
+
+    if (
+        result.suhu === undefined &&
+        result.kelembapanUdara === undefined &&
+        result.kelembapanTanah === undefined
+    ) return null;
+
+    return result;
+}
+
+function firebaseAmbilStatusPompa(root, rawSensor) {
+    const candidates = [
+        root?.control?.pompa,
+        root?.kontrol?.pompa,
+        root?.pompa,
+        root?.pump,
+        rawSensor?.pompa,
+        rawSensor?.pump,
+        rawSensor?.statusPompa
+    ];
+
+    for (const value of candidates) {
+        if (value === undefined || value === null) continue;
+
+        const status = typeof value === "object"
+            ? (value.status ?? value.state ?? value.on ?? value.isOn)
+            : value;
+
+        if (typeof status === "boolean") return status;
+        if (typeof status === "number") return status !== 0;
+
+        if (typeof status === "string") {
+            const normal = status.trim().toLowerCase();
+            if (["on", "nyala", "aktif", "true", "1"].includes(normal)) return true;
+            if (["off", "mati", "nonaktif", "false", "0"].includes(normal)) return false;
+        }
+    }
+    return null;
+}
+
+function firebaseAmbilTimestamp(raw) {
+    const value = raw?.timestamp ?? raw?.time ?? raw?.waktu ?? raw?.createdAt ?? raw?.updatedAt;
+    if (value === undefined || value === null) return new Date();
+
+    if (typeof value === "number") {
+        return new Date(value < 1000000000000 ? value * 1000 : value);
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function firebaseProsesHistory(root) {
+    const source =
+        root?.sensor?.history ??
+        root?.history ??
+        root?.riwayat ??
+        root?.readings ??
+        null;
+
+    if (!source || typeof source !== "object") return;
+
+    const entries = Array.isArray(source)
+        ? source
+        : Object.entries(source).map(([key, value]) => ({
+            ...(value && typeof value === "object" ? value : {}),
+            _firebaseKey: key
+        }));
+
+    if (!entries.length) return;
+
+    const signature = JSON.stringify(entries.slice(-REALTIME_HISTORY_LIMIT));
+    if (signature === firebaseLastHistorySignature) return;
+    firebaseLastHistorySignature = signature;
+
+    const mapped = entries.slice(-REALTIME_HISTORY_LIMIT).map(item => {
+        const raw = item && typeof item === "object" ? item : {};
+        const sensor = firebaseNormalisasiSensor(raw) || {};
+        const pump = firebaseAmbilStatusPompa({ pompa: raw.pompa ?? raw.pump }, raw);
+
+        return {
+            timestamp: firebaseAmbilTimestamp(raw),
+            kelembapanTanah: sensor.kelembapanTanah ?? null,
+            suhu: sensor.suhu ?? null,
+            kelembapanUdara: sensor.kelembapanUdara ?? null,
+            pompa: pump === null ? (raw.pompa ?? raw.pump ?? "--") : (pump ? "ON" : "OFF"),
+            status: (
+                sensor.kelembapanTanah !== undefined &&
+                sensor.kelembapanTanah >= BATAS_POMPA_ON &&
+                sensor.kelembapanTanah <= BATAS_POMPA_OFF
+            ) ? "Normal" : "Perlu perhatian"
+        };
+    });
+
+    realtimeHistory.splice(0, realtimeHistory.length, ...mapped);
+    realtimeChartHistory.splice(0, realtimeChartHistory.length, ...mapped.slice(-REALTIME_CHART_HISTORY_LIMIT));
+    renderPembacaanRealTime();
+}
+
+function firebaseProsesLSTM(root) {
+    const candidates = [
+        root?.lstm,
+        root?.prediksi?.lstm,
+        root?.predictions?.lstm,
+        root?.ai?.lstm
+    ];
+
+    const data = candidates.find(item =>
+        item && typeof item === "object" && Array.isArray(item.predictions)
+    );
+
+    if (!data) return;
+
+    const signature = JSON.stringify(data);
+    if (signature === firebaseLastLstmSignature) return;
+    firebaseLastLstmSignature = signature;
+    updateLSTMData(data);
+}
+
+async function firebaseBacaDatabase() {
+    if (firebaseReadInProgress) return;
+    firebaseReadInProgress = true;
+
+    try {
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/.json`, {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const root = await response.json();
+        if (!root || typeof root !== "object") {
+            console.info("Firebase terhubung, tetapi database belum berisi data sensor.");
+            return;
+        }
+
+        const rawSensor = firebaseCariObjekSensor(root);
+        const sensor = firebaseNormalisasiSensor(rawSensor);
+
+        if (sensor) {
+            const signature = JSON.stringify(sensor);
+            if (signature !== firebaseLastSensorSignature) {
+                firebaseLastSensorSignature = signature;
+                updateSensorData(sensor);
+            }
+        }
+
+        const statusPompa = firebaseAmbilStatusPompa(root, rawSensor);
+        if (statusPompa !== null) {
+            firebasePumpStatusReceived = true;
+            pompaMenyala = statusPompa;
+            updateTampilanPompa();
+        } else if (!firebasePumpStatusReceived) {
+            // Jangan menampilkan status pompa hasil simulasi lokal sebagai status perangkat.
+            const statusDetail = document.getElementById("statusPompaDetail");
+            const indikator = document.getElementById("indikatorPompa");
+            const keterangan = document.getElementById("keteranganModePompa");
+            if (statusDetail) statusDetail.textContent = "Menunggu status pompa dari ESP32";
+            if (indikator) indikator.textContent = "Status belum diterima";
+            if (keterangan) keterangan.textContent = "Status pompa akan tampil setelah ESP32 mengirimkannya ke Firebase.";
+        }
+
+        firebaseProsesHistory(root);
+        firebaseProsesLSTM(root);
+
+        console.info("Data Firebase berhasil dibaca.");
+    } catch (error) {
+        console.error("Gagal membaca Firebase Realtime Database:", error);
+    } finally {
+        firebaseReadInProgress = false;
+    }
+}
+
+// Mulai membaca database setelah seluruh fungsi interface tersedia.
+firebaseBacaDatabase();
+setInterval(firebaseBacaDatabase, FIREBASE_POLL_INTERVAL);
+
+// Fungsi dapat dipanggil dari console browser untuk tes manual.
+window.firebaseBacaDatabase = firebaseBacaDatabase;
+
