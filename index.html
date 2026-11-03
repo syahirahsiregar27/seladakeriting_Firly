@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SeladaDar - Smart Farming Selada</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            <h2>🌿 SeladaDar</h2>
+            <p>MONITORING SYSTEM</p>
+        </div>
+
+        <nav>
+
+            <a href="#dashboard" class="menu active">
+                Dashboard
+            </a>
+
+            <a href="#prediksi" class="menu">
+                Prediksi AI
+            </a>
+
+            <a href="#lstm" class="menu">
+                Model LSTM
+            </a>
+
+            <a href="#cnn" class="menu">
+                Model CNN
+            </a>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <p>System Status</p>
+            <h4>🟢 All Systems Operational</h4>
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main class="main-content">
+
+        <!-- HEADER -->
+
+        <header class="top-header">
+
+            <div class="header-title">
+
+                <h1 id="judulHalaman">
+                    Dashboard
+                </h1>
+
+                <p>
+                    Pemantauan selada keriting berbasis IoT dan AI
+                </p>
+
+            </div>
+
+
+            <div class="header-control">
+
+                <span class="status-node">
+                    🟢 Node ESP32
+                </span>
+
+                <span id="jamDigital">
+                    00:00:00
+                </span>
+
+                <button id="tombolTema">
+                    🌗 Tema
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =====================================================
+             DASHBOARD
+        ====================================================== -->
+
+        <section id="dashboard" class="page active">
+
+            <!-- UMUR TANAMAN -->
+
+            <div class="umur-card">
+
+                <div>
+
+                    <p>
+                        UMUR TANAMAN SAAT INI
+                    </p>
+
+                    <h1 id="umurTanaman">
+                        Hari ke-1
+                    </h1>
+
+                    <p>
+                        Tanam pada:
+                        <span id="tanggalTanamText">
+                            -
+                        </span>
+                    </p>
+
+                </div>
+
+
+                <div class="tanggal-control">
+
+                    <label>
+                        Ubah tanggal tanam
+                    </label>
+
+                    <input type="date" id="tanggalTanam">
+
+                </div>
+
+            </div>
+
+
+            <!-- SENSOR -->
+
+            <div class="dashboard-grid">
+
+                <!-- SUHU -->
+
+                <div class="card sensor-card">
+
+                    <h3>
+                        🌡️ Suhu udara
+                    </h3>
+
+                    <h2 id="suhu">
+                        -- <small>°C</small>
+                    </h2>
+
+                    <p>
+                        Ideal 18–24 °C
+                    </p>
+
+                    <span class="status-ideal" id="statusSuhu">
+                        Menunggu
+                    </span>
+
+                    <canvas id="grafikSuhu"></canvas>
+
+                </div>
+
+
+                <!-- KELEMBAPAN UDARA -->
+
+                <div class="card sensor-card">
+
+                    <h3>
+                        💧 Kelembapan udara
+                    </h3>
+
+                    <h2 id="kelembapanUdara">
+                        -- <small>%</small>
+                    </h2>
+
+                    <p>
+                        Ideal 60–75 %
+                    </p>
+
+                    <span class="status-ideal" id="statusUdara">
+                        Menunggu
+                    </span>
+
+                    <canvas id="grafikKelembapanUdara"></canvas>
+
+                </div>
+
+
+                <!-- KELEMBAPAN TANAH -->
+
+                <div class="card sensor-card">
+
+                    <h3>
+                        🌱 Kelembapan tanah
+                    </h3>
+
+                    <h2 id="kelembapan">
+                        -- <small>%</small>
+                    </h2>
+
+                    <p>
+                        Ideal 65–78 %
+                    </p>
+
+                    <span class="status-ideal" id="kondisi">
+                        Menunggu
+                    </span>
+
+                    <canvas id="grafikKelembapan"></canvas>
+
+                </div>
+
+            </div>
+
+
+            <!-- KONTROL POMPA -->
+
+            <div class="card pump-control-card">
+
+                <div class="pump-control-header">
+
+                    <div>
+
+                        <h2>
+                            🚿 Kontrol Pompa Air
+                        </h2>
+
+                        <p>
+                            Pengendalian pompa berdasarkan kelembapan tanah.
+                        </p>
+
+                    </div>
+
+                    <span class="pump-status-badge" id="indikatorPompa">
+                        Pompa mati
+                    </span>
+
+                </div>
+
+
+                <h3 id="statusPompaDetail">
+                    Pompa dalam keadaan MATI
+                </h3>
+
+
+                <small id="keteranganModePompa">
+                    Mode otomatis aktif. Pompa dikendalikan berdasarkan kelembapan tanah.
+                </small>
+
+            </div>
+
+            <section class="card realtime-table-card" aria-labelledby="realtimeTitle">
+                <div class="realtime-panel-heading">
+                    <h2 id="realtimeTitle">▦ Data Real-time <small id="realtimeCount">(0 pembacaan terakhir)</small>
+                    </h2>
+                    <span class="realtime-live"><i></i> LIVE</span>
+                </div>
+                <div class="realtime-table-wrap">
+                    <table class="realtime-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Waktu</th>
+                                <th scope="col">Soil Moisture (%)</th>
+                                <th scope="col">Suhu (°C)</th>
+                                <th scope="col">Kelembapan Udara (%)</th>
+                                <th scope="col">Pompa</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="realtimeTableBody">
+                            <tr class="realtime-empty-row">
+                                <td colspan="6">Menunggu data sensor real-time.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="realtime-graphs-section" aria-labelledby="realtimeGraphsTitle">
+                <div class="realtime-graphs-heading">
+                    <h2 id="realtimeGraphsTitle">⌁ Grafik Data Real-time</h2>
+                    <span>(berjalan terus sesuai data masuk)</span>
+                </div>
+                <div class="realtime-graphs-grid">
+                    <article class="card realtime-chart-card">
+                        <h3>🌱 Soil Moisture (%)</h3>
+                        <div class="realtime-chart-wrap"><canvas id="grafikRealTimeTanah"
+                                aria-label="Grafik kelembapan tanah real-time"></canvas></div>
+                    </article>
+                    <article class="card realtime-chart-card">
+                        <h3>🌡 Suhu Sekitar (°C)</h3>
+                        <div class="realtime-chart-wrap"><canvas id="grafikRealTimeSuhu"
+                                aria-label="Grafik suhu real-time"></canvas></div>
+                    </article>
+                    <article class="card realtime-chart-card">
+                        <h3>💧 Kelembapan Udara (%)</h3>
+                        <div class="realtime-chart-wrap"><canvas id="grafikRealTimeUdara"
+                                aria-label="Grafik kelembapan udara real-time"></canvas></div>
+                    </article>
+                </div>
+            </section>
+
+        </section>
+
+
+        <!-- =====================================================
+             PREDIKSI AI
+        ====================================================== -->
+
+        <section id="prediksi" class="page">
+
+            <div class="card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            Prediksi Pertumbuhan 4 Hari ke Depan
+                        </h2>
+
+                        <p>
+                            Perkembangan tingkat kematangan tanaman berdasarkan data model.
+                        </p>
+
+                    </div>
+
+                    <span class="panen-badge">
+                        Estimasi panen: HST 42
+                    </span>
+
+                </div>
+
+
+                <div class="prediksi-grid">
+
+                    <div class="prediksi-item">
+
+                        <p>
+                            HST ke-22
+                        </p>
+
+                        <div class="tanaman-icon">
+                            🥬
+                        </div>
+
+                        <h2>
+                            --
+                        </h2>
+
+                        <div class="progress">
+                            <div style="width:0%"></div>
+                        </div>
+
+                        <span>
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediksi-item">
+
+                        <p>
+                            HST ke-23
+                        </p>
+
+                        <div class="tanaman-icon">
+                            🥬
+                        </div>
+
+                        <h2>
+                            --
+                        </h2>
+
+                        <div class="progress">
+                            <div style="width:0%"></div>
+                        </div>
+
+                        <span>
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediksi-item">
+
+                        <p>
+                            HST ke-24
+                        </p>
+
+                        <div class="tanaman-icon">
+                            🥬
+                        </div>
+
+                        <h2>
+                            --
+                        </h2>
+
+                        <div class="progress">
+                            <div style="width:0%"></div>
+                        </div>
+
+                        <span>
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediksi-item">
+
+                        <p>
+                            HST ke-25
+                        </p>
+
+                        <div class="tanaman-icon">
+                            🥬
+                        </div>
+
+                        <h2>
+                            --
+                        </h2>
+
+                        <div class="progress">
+                            <div style="width:0%"></div>
+                        </div>
+
+                        <span>
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="card chart-card">
+
+                <h2>
+                    Kurva Kematangan
+                </h2>
+
+                <canvas id="grafikPrediksi"></canvas>
+
+            </div>
+
+
+            <div class="card">
+
+                <h2>
+                    Informasi Prediksi Panen
+                </h2>
+
+                <p>
+                    Umur tanaman saat ini:
+                    <strong id="prediksiUmur">
+                        --
+                    </strong>
+                </p>
+
+                <p>
+                    Estimasi panen:
+                    <strong>
+                        35–42 HST
+                    </strong>
+                </p>
+
+                <p>
+                    Status:
+                    <strong>
+                        Menunggu data model
+                    </strong>
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             MODEL LSTM
+        ====================================================== -->
+
+        <section id="lstm" class="page">
+
+            <!-- HEADER LSTM -->
+
+            <div class="lstm-header-card">
+
+                <div class="lstm-header-icon">
+                    🌱
+                </div>
+
+                <div class="lstm-header-text">
+
+                    <h2>
+                        LSTM — Prediksi 4 Hari ke Depan
+                    </h2>
+
+                    <p>
+                        Prediksi mikroklimat menuju panen berdasarkan data sensor dan model LSTM.
+                    </p>
+
+                </div>
+
+
+                <div class="lstm-run-control">
+                    <label for="umurLSTMHari">Umur tanaman saat ini (HST):</label>
+                    <input id="umurLSTMHari" type="number" min="1" max="365" inputmode="numeric"
+                        aria-label="Umur tanaman saat ini dalam HST">
+                    <button id="btnRefreshLSTM" class="btn-lstm-refresh" type="button">✦ Jalankan Prediksi</button>
+                </div>
+
+            </div>
+
+            <div class="lstm-overview-grid">
+                <article class="lstm-overview-card">
+                    <span>Kelembapan Tanah</span>
+                    <strong id="lstmKelembapanTanahSaatIni">-- %</strong>
+                    <small>Saat ini (sensor)</small>
+                </article>
+                <article class="lstm-overview-card">
+                    <span>Suhu</span>
+                    <strong id="lstmSuhuSaatIni">-- °C</strong>
+                    <small>Saat ini (sensor)</small>
+                </article>
+                <article class="lstm-overview-card">
+                    <span>Kelembapan Udara</span>
+                    <strong id="lstmKelembapanUdaraSaatIni">-- %</strong>
+                    <small>Saat ini (sensor)</small>
+                </article>
+                <article class="lstm-overview-card lstm-harvest-card">
+                    <span>Target Panen</span>
+                    <strong>HST <b id="lstmTargetPanen">42</b></strong>
+                    <small>Estimasi target tanaman</small>
+                </article>
+            </div>
+
+            <div class="lstm-advice-card">
+                <strong>💡 Saran</strong>
+                <p id="lstmSaranUmum">Menunggu data sensor untuk memberikan saran perawatan.</p>
+            </div>
+
+            <!-- JUDUL HASIL -->
+
+            <div class="lstm-result-title">
+
+                <span>
+                    🌱
+                </span>
+
+                <h3>
+                    Prediksi Pertumbuhan 4 Hari ke Depan
+                </h3>
+
+            </div>
+
+
+            <!-- 4 KARTU PREDIKSI -->
+
+            <div class="lstm-prediction-grid">
+
+
+                <!-- H+1 -->
+
+                <article class="lstm-prediction-card" data-day="1">
+
+                    <div class="prediction-top">
+
+                        <strong>
+                            HARI KE-
+                            <span id="lstmHari1">--</span>
+                            <small>
+                                (H+1)
+                            </small>
+                        </strong>
+
+                        <span class="prediction-badge" id="lstmBadge1">
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediction-value" id="lstmPred1">
+                        --%
+                    </div>
+
+
+                    <div class="prediction-progress">
+
+                        <div id="lstmBar1" style="width:0%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="prediction-note">
+
+                        Proyeksi kondisi:
+                        <strong id="lstmKondisi1">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="plant-visual">
+
+                        <div class="plant-emoji">
+                            🌱
+                        </div>
+
+                        <strong id="lstmTahap1">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="prediction-sensors">
+
+                        <span>
+                            Kelembapan Tanah
+                            <b id="lstmKelembapan1">--</b>
+                        </span>
+
+                        <span>
+                            Suhu
+                            <b id="lstmSuhu1">--</b>
+                        </span>
+
+                    </div>
+
+                    <p class="lstm-day-advice">💡 Saran: <span id="lstmSaran1">Menunggu data sensor dari
+                            Firebase.</span></p>
+                    <label class="lstm-visual-upload" for="lstmGambarInput1">
+                        <img id="lstmGambar1" alt="Visualisasi kondisi tanaman hari ke-1">
+                        <span id="lstmGambarPlaceholder1">▧<small>Klik untuk upload gambar</small></span>
+                    </label>
+                    <input class="lstm-image-input" type="file" id="lstmGambarInput1" accept="image/*">
+
+                </article>
+
+
+                <!-- H+2 -->
+
+                <article class="lstm-prediction-card" data-day="2">
+
+                    <div class="prediction-top">
+
+                        <strong>
+                            HARI KE-
+                            <span id="lstmHari2">--</span>
+                            <small>
+                                (H+2)
+                            </small>
+                        </strong>
+
+                        <span class="prediction-badge" id="lstmBadge2">
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediction-value" id="lstmPred2">
+                        --%
+                    </div>
+
+
+                    <div class="prediction-progress">
+
+                        <div id="lstmBar2" style="width:0%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="prediction-note">
+
+                        Proyeksi kondisi:
+                        <strong id="lstmKondisi2">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="plant-visual">
+
+                        <div class="plant-emoji">
+                            🌱
+                        </div>
+
+                        <strong id="lstmTahap2">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="prediction-sensors">
+
+                        <span>
+                            Kelembapan Tanah
+                            <b id="lstmKelembapan2">--</b>
+                        </span>
+
+                        <span>
+                            Suhu
+                            <b id="lstmSuhu2">--</b>
+                        </span>
+
+                    </div>
+
+                    <p class="lstm-day-advice">💡 Saran: <span id="lstmSaran2">Menunggu data sensor dari
+                            Firebase.</span></p>
+                    <label class="lstm-visual-upload" for="lstmGambarInput2">
+                        <img id="lstmGambar2" alt="Visualisasi kondisi tanaman hari ke-2">
+                        <span id="lstmGambarPlaceholder2">▧<small>Klik untuk upload gambar</small></span>
+                    </label>
+                    <input class="lstm-image-input" type="file" id="lstmGambarInput2" accept="image/*">
+
+                </article>
+
+
+                <!-- H+3 -->
+
+                <article class="lstm-prediction-card" data-day="3">
+
+                    <div class="prediction-top">
+
+                        <strong>
+                            HARI KE-
+                            <span id="lstmHari3">--</span>
+                            <small>
+                                (H+3)
+                            </small>
+                        </strong>
+
+                        <span class="prediction-badge" id="lstmBadge3">
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediction-value" id="lstmPred3">
+                        --%
+                    </div>
+
+
+                    <div class="prediction-progress">
+
+                        <div id="lstmBar3" style="width:0%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="prediction-note">
+
+                        Proyeksi kondisi:
+                        <strong id="lstmKondisi3">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="plant-visual">
+
+                        <div class="plant-emoji">
+                            🌱
+                        </div>
+
+                        <strong id="lstmTahap3">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="prediction-sensors">
+
+                        <span>
+                            Kelembapan Tanah
+                            <b id="lstmKelembapan3">--</b>
+                        </span>
+
+                        <span>
+                            Suhu
+                            <b id="lstmSuhu3">--</b>
+                        </span>
+
+                    </div>
+
+                    <p class="lstm-day-advice">💡 Saran: <span id="lstmSaran3">Menunggu data sensor dari
+                            Firebase.</span></p>
+                    <label class="lstm-visual-upload" for="lstmGambarInput3">
+                        <img id="lstmGambar3" alt="Visualisasi kondisi tanaman hari ke-3">
+                        <span id="lstmGambarPlaceholder3">▧<small>Klik untuk upload gambar</small></span>
+                    </label>
+                    <input class="lstm-image-input" type="file" id="lstmGambarInput3" accept="image/*">
+
+                </article>
+
+
+                <!-- H+4 -->
+
+                <article class="lstm-prediction-card" data-day="4">
+
+                    <div class="prediction-top">
+
+                        <strong>
+                            HARI KE-
+                            <span id="lstmHari4">--</span>
+                            <small>
+                                (H+4)
+                            </small>
+                        </strong>
+
+                        <span class="prediction-badge" id="lstmBadge4">
+                            Menunggu data
+                        </span>
+
+                    </div>
+
+
+                    <div class="prediction-value" id="lstmPred4">
+                        --%
+                    </div>
+
+
+                    <div class="prediction-progress">
+
+                        <div id="lstmBar4" style="width:0%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="prediction-note">
+
+                        Proyeksi kondisi:
+                        <strong id="lstmKondisi4">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="plant-visual">
+
+                        <div class="plant-emoji">
+                            🌱
+                        </div>
+
+                        <strong id="lstmTahap4">
+                            Menunggu data
+                        </strong>
+
+                    </div>
+
+
+                    <div class="prediction-sensors">
+
+                        <span>
+                            Kelembapan Tanah
+                            <b id="lstmKelembapan4">--</b>
+                        </span>
+
+                        <span>
+                            Suhu
+                            <b id="lstmSuhu4">--</b>
+                        </span>
+
+                    </div>
+
+                    <p class="lstm-day-advice">💡 Saran: <span id="lstmSaran4">Menunggu data sensor dari
+                            Firebase.</span></p>
+                    <label class="lstm-visual-upload" for="lstmGambarInput4">
+                        <img id="lstmGambar4" alt="Visualisasi kondisi tanaman hari ke-4">
+                        <span id="lstmGambarPlaceholder4">▧<small>Klik untuk upload gambar</small></span>
+                    </label>
+                    <input class="lstm-image-input" type="file" id="lstmGambarInput4" accept="image/*">
+
+                </article>
+
+            </div>
+
+
+            <div class="lstm-empty-note" id="lstmEmptyNote">
+
+                Persentase adalah estimasi berdasarkan data aktual/model LSTM. Hubungkan backend untuk menampilkan
+                prediksi.
+
+            </div>
+
+            <div class="card lstm-history-card">
+                <div class="lstm-history-header">
+                    <h3>🌱 Perkembangan Tingkat Kematangan sejak Awal Tanam</h3>
+                    <div class="lstm-history-controls">
+                        <label for="tanggalTanamLSTM">Tanggal tanam:</label>
+                        <input type="date" id="tanggalTanamLSTM">
+                        <span id="statusGrafikLSTM">Menunggu data aktual</span>
+                    </div>
+                </div>
+                <div class="lstm-history-chart">
+                    <canvas id="grafikKematanganLSTM"
+                        aria-label="Grafik tingkat kematangan aktual dan proyeksi menuju panen"></canvas>
+                </div>
+                <p>Data kematangan aktual dan proyeksi akan ditampilkan setelah data/model tersedia.</p>
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             MODEL CNN
+        ====================================================== -->
+
+        <section id="cnn" class="page cnn-page">
+
+            <div class="cnn-page-heading">
+                <h2>CNN — Tingkat Kematangan Selada</h2>
+                <p>Upload foto daun selada untuk melihat segmentasi dan pengukuran lebar; prediksi fase tersedia setelah
+                    model CNN terhubung.</p>
+            </div>
+
+            <div class="card cnn-workspace">
+                <div class="cnn-panel-title">
+                    <h3>⬆ Upload Gambar</h3>
+                    <button id="hapusGambarCNN" class="cnn-delete-button" type="button" hidden>Hapus Gambar</button>
+                </div>
+
+                <label for="uploadFoto" class="cnn-dropzone">
+                    <span class="cnn-upload-symbol" aria-hidden="true">☁</span>
+                    <strong>Klik untuk pilih foto selada</strong>
+                    <small>JPG / PNG</small>
+                </label>
+                <input type="file" id="uploadFoto" accept="image/jpeg,image/png">
+
+                <div class="cnn-preview-grid">
+                    <div class="cnn-preview-item">
+                        <span>Gambar asli</span>
+                        <div class="cnn-image-frame">
+                            <img id="previewGambar" alt="Foto asli daun selada">
+                            <p id="previewAsliKosong">Foto yang diunggah akan tampil di sini.</p>
+                        </div>
+                    </div>
+                    <div class="cnn-preview-item">
+                        <span>Segmentasi daun</span>
+                        <div class="cnn-image-frame">
+                            <canvas id="segmentasiGambar" aria-label="Hasil segmentasi warna daun"></canvas>
+                            <p id="previewSegmentasiKosong">Hasil segmentasi akan tampil di sini.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="cnn-color-legend">
+                    Warna segmentasi:
+                    <span class="legend-green">hijau</span> sehat ·
+                    <span class="legend-yellow">kuning</span> menguning ·
+                    <span class="legend-brown">cokelat</span> nekrosis ·
+                    <span class="legend-red">merah</span> bercak gelap ·
+                    <span class="legend-blue">biru</span> lubang
+                </p>
+                <p class="cnn-image-status" id="hasilDeteksi" aria-live="polite">Belum ada gambar.</p>
+            </div>
+
+            <div class="card cnn-prediction-card">
+                <div class="cnn-panel-title">
+                    <h3>▥ Prediksi Tingkat Kematangan</h3>
+                    <span class="cnn-result-badge" id="statusPrediksiCNN">Belum ada gambar</span>
+                </div>
+                <div class="cnn-prediction-layout">
+                    <div class="cnn-chart-wrap">
+                        <canvas id="grafikKematanganCNN" aria-label="Grafik prediksi tingkat kematangan"></canvas>
+                    </div>
+                    <div class="cnn-metric-column">
+                        <div class="cnn-width-result">
+                            <span>Lebar daun terukur</span>
+                            <strong id="lebarDaunCNN">-- px</strong>
+                            <small>Pengukuran dari segmentasi warna, bukan satuan fisik.</small>
+                        </div>
+                        <p class="cnn-model-note" id="catatanPrediksiCNN">Persentase akan tampil setelah model CNN
+                            terhubung.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cnn-pest-card">
+                <div class="cnn-panel-title">
+                    <h3>✿ Deteksi Hama &amp; Penyakit</h3>
+                    <span class="cnn-result-badge" id="statusHamaCNN">Belum ada gambar</span>
+                </div>
+                <p id="hasilHamaCNN">Hasil deteksi akan tampil setelah gambar diproses.</p>
+                <small>Deteksi berbasis analisis warna &amp; bentuk daun merupakan perkiraan awal, bukan diagnosis
+                    pasti; pastikan dengan pengamatan langsung.</small>
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             FOOTER
+        ====================================================== -->
+
+        <footer>
+
+            <p>
+                © 2026 SeladaDar - Smart Farming Selada Keriting
+            </p>
+
+        </footer>
+
+
+    </main>
+
+
+    <!-- =====================================================
+         JAVASCRIPT
+    ====================================================== -->
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
